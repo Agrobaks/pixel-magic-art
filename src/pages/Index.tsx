@@ -36,7 +36,6 @@ const Index = () => {
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
   const [played, setPlayed] = useState(0);
-  const playerRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const hasInteracted = useRef(false);
 
@@ -89,9 +88,12 @@ const Index = () => {
   const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const fraction = (e.clientX - rect.left) / rect.width;
-    const el = playerRef.current;
-    if (el && el.duration) {
-      el.currentTime = fraction * el.duration;
+    const container = containerRef.current;
+    if (container) {
+      const video = container.querySelector("video") as HTMLVideoElement | null;
+      if (video && video.duration) {
+        video.currentTime = fraction * video.duration;
+      }
     }
     setProgress(fraction);
   };
@@ -175,7 +177,6 @@ const Index = () => {
           <div ref={containerRef} className="w-full md:flex-1 border neon-border-solid rounded-lg overflow-hidden neon-block-glow">
             <div className="aspect-video">
               <ReactPlayer
-                ref={playerRef}
                 src={track.videoUrl}
                 playing={isPlaying}
                 volume={muted ? 0 : volume}
