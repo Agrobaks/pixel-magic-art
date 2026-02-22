@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { SkipBack, SkipForward, Play, Pause, Volume2, VolumeX } from "lucide-react";
 import ReactPlayer from "react-player";
 import logo from "@/assets/logo.png";
@@ -37,12 +37,39 @@ const Index = () => {
   const [duration, setDuration] = useState(0);
   const [played, setPlayed] = useState(0);
   const playerRef = useRef<HTMLVideoElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const hasInteracted = useRef(false);
 
   const track = tracks[currentTrack];
 
-  const handlePlayPause = useCallback(() => {
-    setIsPlaying((prev) => !prev);
+  // On mobile, programmatic play on YouTube iframe may be blocked.
+  // We trigger a click on the inner video/iframe to unblock playback.
+  const triggerMobilePlay = useCallback(() => {
+    if (hasInteracted.current) return;
+    const container = containerRef.current;
+    if (container) {
+      const video = container.querySelector("video") as HTMLVideoElement | null;
+      const iframe = container.querySelector("iframe") as HTMLIFrameElement | null;
+      if (video) {
+        video.play().catch(() => {});
+        hasInteracted.current = true;
+      } else if (iframe) {
+        // For YouTube embeds, posting a playVideo command
+        iframe.contentWindow?.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
+        hasInteracted.current = true;
+      }
+    }
   }, []);
+
+  const handlePlayPause = useCallback(() => {
+    setIsPlaying((prev) => {
+      if (!prev) {
+        // Small delay to let ReactPlayer render the iframe/video first
+        setTimeout(triggerMobilePlay, 300);
+      }
+      return !prev;
+    });
+  }, [triggerMobilePlay]);
 
   const handlePrev = useCallback(() => {
     setCurrentTrack((p) => (p === 0 ? tracks.length - 1 : p - 1));
@@ -145,7 +172,7 @@ const Index = () => {
           </div>
 
           {/* Right: Video Player */}
-          <div className="w-full md:flex-1 border neon-border-solid rounded-lg overflow-hidden neon-block-glow">
+          <div ref={containerRef} className="w-full md:flex-1 border neon-border-solid rounded-lg overflow-hidden neon-block-glow">
             <div className="aspect-video">
               <ReactPlayer
                 ref={playerRef}
