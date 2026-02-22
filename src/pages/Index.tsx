@@ -31,57 +31,41 @@ const formatTime = (seconds: number) => {
 const Index = () => {
   const [currentTrack, setCurrentTrack] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [playKey, setPlayKey] = useState(0);
   const [volume, setVolume] = useState(0.7);
   const [muted, setMuted] = useState(false);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
   const [played, setPlayed] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
-  const hasInteracted = useRef(false);
 
   const track = tracks[currentTrack];
-
-  // On mobile, programmatic play on YouTube iframe may be blocked.
-  // We trigger a click on the inner video/iframe to unblock playback.
-  const triggerMobilePlay = useCallback(() => {
-    if (hasInteracted.current) return;
-    const container = containerRef.current;
-    if (container) {
-      const video = container.querySelector("video") as HTMLVideoElement | null;
-      const iframe = container.querySelector("iframe") as HTMLIFrameElement | null;
-      if (video) {
-        video.play().catch(() => {});
-        hasInteracted.current = true;
-      } else if (iframe) {
-        // For YouTube embeds, posting a playVideo command
-        iframe.contentWindow?.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
-        hasInteracted.current = true;
-      }
-    }
-  }, []);
 
   const handlePlayPause = useCallback(() => {
     setIsPlaying((prev) => {
       if (!prev) {
-        // Small delay to let ReactPlayer render the iframe/video first
-        setTimeout(triggerMobilePlay, 300);
+        // Remount player with playing={true} to bypass mobile autoplay restrictions
+        setPlayKey((k) => k + 1);
       }
       return !prev;
     });
-  }, [triggerMobilePlay]);
+  }, []);
 
   const handlePrev = useCallback(() => {
     setCurrentTrack((p) => (p === 0 ? tracks.length - 1 : p - 1));
+    setPlayKey((k) => k + 1);
     setIsPlaying(true);
   }, []);
 
   const handleNext = useCallback(() => {
     setCurrentTrack((p) => (p === tracks.length - 1 ? 0 : p + 1));
+    setPlayKey((k) => k + 1);
     setIsPlaying(true);
   }, []);
 
   const handleTrackClick = (index: number) => {
     setCurrentTrack(index);
+    setPlayKey((k) => k + 1);
     setIsPlaying(true);
   };
 
@@ -177,6 +161,7 @@ const Index = () => {
           <div ref={containerRef} className="w-full md:flex-1 border neon-border-solid rounded-lg overflow-hidden neon-block-glow">
             <div className="aspect-video">
               <ReactPlayer
+                key={playKey}
                 src={track.videoUrl}
                 playing={isPlaying}
                 volume={muted ? 0 : volume}
